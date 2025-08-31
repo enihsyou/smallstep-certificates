@@ -925,6 +925,8 @@ func (a *Authority) GetTLSCertificate() (*tls.Certificate, error) {
 	certTpl := template.GetCertificate()
 	certTpl.NotBefore = now.Add(-1 * time.Minute)
 	certTpl.NotAfter = now.Add(24 * time.Hour)
+	certTpl.CRLDistributionPoints = a.config.Audience("/crl")[:1]
+	certTpl.IssuingCertificateURL = a.config.Audience("/intermediates.pem")[:1]
 
 	// Policy and constraints require this fields to be set. At this moment they
 	// are only present in the extra extension.

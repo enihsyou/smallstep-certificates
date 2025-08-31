@@ -97,6 +97,7 @@ type CRLConfig struct {
 	CacheDuration    *provisioner.Duration `json:"cacheDuration,omitempty"`
 	RenewPeriod      *provisioner.Duration `json:"renewPeriod,omitempty"`
 	IDPurl           string                `json:"idpURL,omitempty"`
+	RootCRL          string                `json:"rootCRL,omitempty"`
 }
 
 // IsEnabled returns if the CRL is enabled.
@@ -429,7 +430,7 @@ func (c *Config) Audience(path string) []string {
 	audiences := make([]string, len(c.DNSNames)+1)
 	for i, name := range c.DNSNames {
 		hostname := toHostname(name)
-		audiences[i] = "https://" + hostname + path
+		audiences[i] = "http://" + hostname + path
 	}
 	// For backward compatibility
 	audiences[len(c.DNSNames)] = path

@@ -228,25 +228,24 @@ func (ca *CA) Init(cfg *config.Config) (*CA, error) {
 	webhookTransport.TLSClientConfig = clientTLSConfig
 
 	// Using chi as the main router
-	mux := chi.NewRouter()
-	handler := http.Handler(mux)
+	muxHttps := chi.NewRouter()
+	handler := http.Handler(muxHttps)
 
-	insecureMux := chi.NewRouter()
-	insecureHandler := http.Handler(insecureMux)
+	muxHttp := chi.NewRouter()
+	insecureHandler := http.Handler(muxHttp)
+
+	// register router for both http and https
+	mux := muxTee{muxHttp, muxHttps}
+	insecureMux := mux // preserve name for existing reference
 
 	// Add HEAD middleware
 	mux.Use(middleware.GetHead)
-	insecureMux.Use(middleware.GetHead)
 
 	// Add regular CA api endpoints in / and /1.0
 	api.Route(mux)
 	mux.Route("/1.0", func(r chi.Router) {
 		api.Route(r)
 	})
-
-	// Mount the CRL to the insecure mux
-	insecureMux.Get("/crl", api.CRL)
-	insecureMux.Get("/1.0/crl", api.CRL)
 
 	// Add ACME api endpoints in /acme and /1.0/acme
 	dns := cfg.DNSNames[0]
@@ -746,4 +745,27 @@ func runCompact(c nosql.Compactor) {
 	for err := error(nil); err == nil; {
 		err = c.Compact(0.7)
 	}
+}
+
+type muxTee struct {
+	http, https *chi.Mux
+}
+
+func (g muxTee) MethodFunc(method, pattern string, h http.HandlerFunc) {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		g.http.MethodFunc(method, pattern, h)
+	}
+	g.https.MethodFunc(method, pattern, h)
+}
+
+func (g muxTee) Use(middlewares ...func(http.Handler) http.Handler) {
+	g.http.Use(middlewares...)
+	g.https.Use(middlewares...)
+}
+
+func (g muxTee) Route(pattern string, fn func(r chi.Router)) chi.Router {
+	g.http.Route(pattern, fn)
+	g.https.Route(pattern, fn)
+	return nil // prevent chain use
 }
