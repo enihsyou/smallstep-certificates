@@ -340,6 +340,7 @@ func Route(r Router) {
 	r.MethodFunc("GET", "/intermediates", Intermediates)
 	r.MethodFunc("GET", "/intermediates.pem", IntermediatesPEM)
 	r.MethodFunc("GET", "/federation", Federation)
+    r.MethodFunc("GET", "/root.crl", RootCRL)
 
 	// SSH CA
 	r.MethodFunc("POST", "/ssh/sign", SSHSign)
