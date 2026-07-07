@@ -41,12 +41,16 @@ type options struct {
 	// logRealIP determines if the real IP address of the client should be logged
 	// instead of the IP address of the proxy
 	logRealIP bool
+
+	// enableEndpointAccessLog enables endpoint access log
+	enableEndpointAccessLog bool
 }
 
 // NewLoggerHandler returns the given http.Handler with the logger integrated.
 func NewLoggerHandler(name string, logger *Logger, next http.Handler) http.Handler {
 	onlyTraceHealthEndpoint, _ := strconv.ParseBool(os.Getenv("STEP_LOGGER_ONLY_TRACE_HEALTH_ENDPOINT"))
 	logRealIP, _ := strconv.ParseBool(os.Getenv("STEP_LOGGER_LOG_REAL_IP"))
+	disableEndpointAccessLog, _ := strconv.ParseBool(os.Getenv("STEP_DISABLE_ENDPOINT_ACCESS_LOG"))
 
 	return &LoggerHandler{
 		name:   name,
@@ -54,6 +58,7 @@ func NewLoggerHandler(name string, logger *Logger, next http.Handler) http.Handl
 		options: options{
 			onlyTraceHealthEndpoint: onlyTraceHealthEndpoint,
 			logRealIP:               logRealIP,
+			enableEndpointAccessLog: !disableEndpointAccessLog,
 		},
 		next: next,
 	}
@@ -128,7 +133,7 @@ func (l *LoggerHandler) writeEntry(w ResponseLogger, r *http.Request, t time.Tim
 	case status < http.StatusBadRequest:
 		if l.options.onlyTraceHealthEndpoint && uri == "/health" {
 			l.logger.WithFields(fields).Trace()
-		} else {
+		} else if l.options.enableEndpointAccessLog {
 			l.logger.WithFields(fields).Info()
 		}
 	case status < http.StatusInternalServerError:
